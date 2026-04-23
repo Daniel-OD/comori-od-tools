@@ -1,7 +1,7 @@
 import { AUTHORS } from "./data/authors.js";
 import { initBrowser, selectAuthor, selectArticle, getBrowserState } from "./modules/browser.js";
 import { sendAI } from "./modules/ai-chat.js";
-import { renderChat } from "./modules/ui.js";
+import { renderChat, updateCtxBar } from "./modules/ui.js";
 import { renderBookmarksPanel } from "./modules/bookmarks.js";
 import { initDarkMode } from "./modules/dark-mode.js";
 
@@ -129,6 +129,7 @@ function init() {
     onStateChange: (nextState) => {
       state = nextState;
       updateAnalyzeButton();
+      updateCtxBar(state.currentContent, state.selAuthor);
     },
     onBookmarkChange: () => {
       renderBookmarksPanel((bookmark) => selectArticle(bookmark));

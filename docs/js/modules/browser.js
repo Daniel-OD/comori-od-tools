@@ -1,8 +1,5 @@
 import { fetchDoc } from "./fetcher.js";
 import { showProgress, hideProgress } from "./progress.js";
-import { addBooksSearch, addArticlesSearch } from "./search.js";
-import { isBookmarked } from "./bookmarks.js";
-import { updateCtxBar } from "./ui.js";
 import { renderReaderLoading, renderReaderArticle, renderReaderError } from "./reader.js";
 
 let selAuthor = null;
