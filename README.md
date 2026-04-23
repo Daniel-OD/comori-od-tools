@@ -13,3 +13,10 @@ https://daniel-od.github.io/comori-od-tools/
 
 ## Utilizare
 Deschide src/index.html in browser.
+
+## Cloudflare Worker - secret ANTHROPIC_KEY
+Configureaza cheia API in Worker ca secret:
+
+```bash
+wrangler secret put ANTHROPIC_KEY
+```

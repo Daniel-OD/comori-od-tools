@@ -2,7 +2,7 @@
 // Claude generează referințe ca [LINK:autor:traian-dorz:Traian Dorz]
 // iar frontend-ul le transformă în <a href="..."> clickabile
 
-const WORKER_URL = "https://comori-od-worker.YOUR_SUBDOMAIN.workers.dev";
+const WORKER_URL = "https://comori-od-tools.daniel-iosif.workers.dev";
 const BASE_URL = "https://comori-od.ro";
 
 // ─── System prompt cu instrucțiuni de linkuri ───────────────────────────────
