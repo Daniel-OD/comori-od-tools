@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Comori OD — Analiză & Interpretare AI</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f5f3ee; color: #1a1a1a; font-size: 14px; }
+  a { color: #5b6af0; }
+
+  #app { max-width: 1100px; margin: 0 auto; padding: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; min-height: 100vh; }
+
+  .card { background: #fff; border-radius: 12px; border: 1px solid #e8e4dc; overflow: hidden; display: flex; flex-direction: column; }
+
+  .card-header { padding: 12px 16px; border-bottom: 1px solid #e8e4dc; display: flex; align-items: center; justify-content: space-between; background: #faf8f4; }
+  .card-header h2 { font-size: 13px; font-weight: 600; color: #444; text-transform: uppercase; letter-spacing: 0.05em; }
+
+  /* Stats bar */
+  #stats { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .stat { background: #fff; border-radius: 10px; border: 1px solid #e8e4dc; padding: 12px 14px; }
+  .stat-val { font-size: 20px; font-weight: 700; color: #1a1a1a; }
+  .stat-lbl { font-size: 11px; color: #888; margin-top: 2px; }
+
+  /* Browser */
+  #browser { grid-column: 1 / -1; }
+  .browser-cols { display: grid; grid-template-columns: 200px 220px 1fr; height: 340px; border-top: 1px solid #e8e4dc; }
+  .bcol { overflow-y: auto; border-right: 1px solid #e8e4dc; }
+  .bcol:last-child { border-right: none; }
+  .bcol-head { padding: 7px 12px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: #888; border-bottom: 1px solid #e8e4dc; position: sticky; top: 0; background: #faf8f4; z-index: 1; display: flex; justify-content: space-between; align-items: center; }
+  .brow { padding: 7px 12px; cursor: pointer; border-bottom: 1px solid #f0ede7; display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; transition: background .1s; }
+  .brow:hover { background: #f5f3ee; }
+  .brow.active { background: #eeeaff; }
+  .brow-name { font-size: 13px; color: #1a1a1a; line-height: 1.3; }
+  .brow-badge { font-size: 10px; color: #888; background: #f0ede7; padding: 1px 5px; border-radius: 4px; flex-shrink: 0; white-space: nowrap; }
+  .brow-sub { font-size: 10px; color: #aaa; margin-top: 1px; }
+  .art-grid { display: grid; grid-template-columns: 1fr 1fr; }
+  .art-row { padding: 6px 10px; cursor: pointer; border-bottom: 1px solid #f0ede7; transition: background .1s; display: flex; gap: 5px; align-items: flex-start; }
+  .art-row:nth-child(odd) { border-right: 1px solid #f0ede7; }
+  .art-row:hover { background: #f5f3ee; }
+  .art-num { font-size: 10px; color: #bbb; flex-shrink: 0; padding-top: 2px; }
+  .art-title { font-size: 12px; color: #1a1a1a; line-height: 1.4; }
+
+  /* Reader */
+  #reader-body { flex: 1; overflow-y: auto; padding: 20px 24px; }
+  #reader-body .empty { padding: 2rem; text-align: center; color: #aaa; font-size: 13px; }
+  #article-title { font-size: 22px; font-weight: 700; font-family: Georgia, serif; margin-bottom: 6px; color: #1a1a1a; }
+  #article-meta { font-size: 12px; color: #888; margin-bottom: 20px; }
+  #article-text { font-family: Georgia, serif; font-size: 15px; line-height: 1.9; color: #2a2a2a; white-space: pre-wrap; }
+  .analyze-btn { font-size: 12px; background: #5b6af0; color: #fff; border: none; border-radius: 6px; padding: 5px 12px; cursor: pointer; margin-left: 10px; }
+  .analyze-btn:hover { background: #4a59df; }
+
+  /* AI Chat */
+  #chat-wrap { flex: 1; overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+  .msg { max-width: 90%; padding: 10px 14px; border-radius: 12px; font-size: 13px; line-height: 1.7; white-space: pre-wrap; }
+  .msg.user { align-self: flex-end; background: #eeeaff; color: #1a1a1a; }
+  .msg.assistant { align-self: flex-start; background: #f5f3ee; color: #1a1a1a; }
+  .msg.typing { opacity: 0.6; font-style: italic; }
+  #chat-input-row { padding: 10px 14px; border-top: 1px solid #e8e4dc; display: flex; gap: 8px; }
+  #chat-input { flex: 1; font-size: 13px; border: 1px solid #ddd; border-radius: 8px; padding: 7px 11px; outline: none; font-family: inherit; }
+  #chat-input:focus { border-color: #5b6af0; }
+  #send-btn { background: #5b6af0; color: #fff; border: none; border-radius: 8px; padding: 7px 14px; cursor: pointer; font-size: 13px; font-weight: 500; }
+  #send-btn:hover { background: #4a59df; }
+  #send-btn:disabled { background: #ccc; cursor: default; }
+
+  /* Quick questions */
+  #quick { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .quick-btn { background: #fff; border: 1px solid #e0ddd6; border-radius: 20px; padding: 5px 13px; font-size: 12px; cursor: pointer; color: #444; transition: all .1s; font-family: inherit; }
+  .quick-btn:hover { background: #eeeaff; border-color: #5b6af0; color: #5b6af0; }
+
+  /* AI context bar */
+  #ai-ctx { padding: 7px 14px; border-bottom: 1px solid #e8e4dc; font-size: 11px; color: #888; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; background: #faf8f4; }
+  #ai-ctx strong { color: #444; font-weight: 600; }
+  .ctx-btn { font-size: 11px; background: transparent; border: 1px solid #ddd; border-radius: 5px; padding: 2px 8px; cursor: pointer; color: #5b6af0; font-family: inherit; }
+  .ctx-btn:hover { background: #eeeaff; }
+
+  /* Spinner */
+  .spin { width: 18px; height: 18px; border: 2px solid #e0ddd6; border-top-color: #5b6af0; border-radius: 50%; animation: rotate .7s linear infinite; margin: 2rem auto; display: block; }
+  @keyframes rotate { to { transform: rotate(360deg); } }
+  .empty-msg { padding: 2rem; text-align: center; color: #aaa; font-size: 12px; }
+
+  /* Dist bar */
+  #dist-bar { grid-column: 1 / -1; background: #fff; border-radius: 10px; border: 1px solid #e8e4dc; padding: 12px 16px; }
+  #dist-bar h3 { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: #888; margin-bottom: 8px; }
+  #bars { display: flex; align-items: flex-end; gap: 3px; height: 36px; }
+  .bar-seg { border-radius: 2px 2px 0 0; cursor: pointer; transition: opacity .1s; }
+  .bar-seg:hover { opacity: 0.8; }
+
+  @media (max-width: 700px) {
+    #app { grid-template-columns: 1fr; }
+    #stats { grid-template-columns: repeat(2,1fr); }
+    .browser-cols { grid-template-columns: 1fr; height: auto; }
+    .bcol { height: 200px; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- Stats -->
+  <div id="stats">
+    <div class="stat"><div class="stat-val">18+</div><div class="stat-lbl">Autori</div></div>
+    <div class="stat"><div class="stat-val" id="total-art">—</div><div class="stat-lbl">Articole totale</div></div>
+    <div class="stat"><div class="stat-val">8.978</div><div class="stat-lbl">Traian Dorz (max)</div></div>
+    <div class="stat"><div class="stat-val">1923</div><div class="stat-lbl">An fondare OD</div></div>
+  </div>
+
+  <!-- Distribution bar -->
+  <div id="dist-bar">
+    <h3>Distribuție articole per autor — click pentru selecție</h3>
+    <div id="bars"></div>
+  </div>
+
+  <!-- Browser -->
+  <div class="card" id="browser" style="grid-column:1/-1">
+    <div class="card-header">
+      <h2>Bibliotecă</h2>
+      <a href="https://comori-od.ro" target="_blank" style="font-size:12px">comori-od.ro ↗</a>
+    </div>
+    <div class="browser-cols">
+      <div class="bcol" id="col-authors">
+        <div class="bcol-head"><span>Autori</span></div>
+      </div>
+      <div class="bcol" id="col-books">
+        <div class="bcol-head"><span>Cărți</span></div>
+        <div class="empty-msg">Selectează un autor.</div>
+      </div>
+      <div class="bcol" id="col-articles">
+        <div class="bcol-head"><span>Articole</span></div>
+        <div class="empty-msg">Selectează o carte.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reader -->
+  <div class="card">
+    <div class="card-header">
+      <h2>Cititor</h2>
+      <button class="analyze-btn" id="btn-analyze" style="display:none" onclick="analyzeCurrentText()">Analizează cu AI ↗</button>
+    </div>
+    <div id="reader-body">
+      <div class="empty">Selectează un articol din bibliotecă pentru a-l citi.</div>
+    </div>
+  </div>
+
+  <!-- AI Chat -->
+  <div class="card">
+    <div class="card-header"><h2>Interpretare AI</h2></div>
+    <div id="ai-ctx" style="display:none"></div>
+    <div id="chat-wrap"></div>
+    <div id="chat-input-row">
+      <input id="chat-input" type="text" placeholder="Pune o întrebare despre texte, autori, teme spirituale..." />
+      <button id="send-btn" onclick="sendMessage()">Trimite</button>
+    </div>
+  </div>
+
+  <!-- Quick questions -->
+  <div id="quick">
+    <span style="font-size:11px;color:#888;font-weight:600;text-transform:uppercase;letter-spacing:.05em">Rapid:</span>
+    <button class="quick-btn" onclick="quickAsk('Cine a fost Traian Dorz și care a fost contribuția lui spirituală?')">Cine a fost Traian Dorz?</button>
+    <button class="quick-btn" onclick="quickAsk('Ce este Oastea Domnului și care este istoria ei?')">Ce este Oastea Domnului?</button>
+    <button class="quick-btn" onclick="quickAsk('Care sunt temele principale în opera lui Pr. Iosif Trifa?')">Teme Pr. Trifa</button>
+    <button class="quick-btn" onclick="quickAsk('Analizează simbolismul crucii și al suferinței în poezia lui Traian Dorz.')">Simbolismul crucii</button>
+    <button class="quick-btn" onclick="quickAsk('Compară stilul poetic al lui Traian Dorz cu cel al lui Pr. Iosif Trifa.')">Comparație autori</button>
+  </div>
+
+</div>
+
+<script>
+const AUTHORS = [
+  { name:"Traian Dorz", slug:"traian-dorz", count:8978, years:"1914–1989", desc:"Apostolul, martirul și poetul Oastei Domnului" },
+  { name:"Pr. Iosif Trifa", slug:"pr-iosif-trifa", count:1726, years:"1888–1938", desc:"Fondatorul Oastei Domnului" },
+  { name:"Arcadie Nistor", slug:"arcadie-nistor", count:54, years:"1924–2006", desc:"" },
+  { name:"Popa Petru (Săucani)", slug:"popa-petru-saucani", count:31, years:"1918–1985", desc:"" },
+  { name:"Popa Petru (Batiz)", slug:"popa-petru-batiz", count:26, years:"1915–1983", desc:"" },
+  { name:"Ioan Marini", slug:"ioan-marini", count:25, years:"1908–1947", desc:"" },
+  { name:"Ioan Opriș", slug:"ioan-opris", count:24, years:"1907–1996", desc:"" },
+  { name:"Leon Andronic", slug:"leon-andronic", count:10, years:"", desc:"" },
+  { name:"Ioan Voina", slug:"ioan-voina", count:8, years:"", desc:"" },
+  { name:"Vasile Câmpean", slug:"vasile-campean", count:8, years:"", desc:"" },
+  { name:"Pr. Teodor Heredea", slug:"pr-teodor-heredea", count:7, years:"", desc:"" },
+  { name:"Costică Feder", slug:"costica-feder", count:6, years:"", desc:"" },
+  { name:"Costică Iacobuță", slug:"costica-iacobuta", count:6, years:"", desc:"" },
+  { name:"Cornel Silaghi", slug:"cornel-silaghi", count:5, years:"", desc:"" },
+  { name:"Valer Irinca", slug:"valer-irinca", count:2, years:"", desc:"" },
+  { name:"Cornel Rusu", slug:"cornel-rusu", count:2, years:"", desc:"" },
+  { name:"Vasile Acsinuță", slug:"vasile-acsinuta", count:2, years:"", desc:"" },
+  { name:"Viorel Bar (Săucani)", slug:"viorel-bar-saucani", count:2, years:"", desc:"" },
+];
+
+const BASE = "https://comori-od.ro";
+const PROXY = url => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+
+let selAuthor = null, selBook = null, currentContent = null;
+let chatHistory = [{ role:"assistant", content:"Bună ziua! Sunt gata să analizez și să interpretez textele din Comori OD. Selectează un articol din bibliotecă sau pune-mi o întrebare directă." }];
+
+// Init
+const total = AUTHORS.reduce((s,a)=>s+a.count,0);
+document.getElementById("total-art").textContent = total.toLocaleString("ro");
+
+// Dist bars
+const barsEl = document.getElementById("bars");
+AUTHORS.forEach(a => {
+  const h = Math.max(4, Math.round((a.count/8978)*34));
+  const w = Math.max(6, Math.round((a.count/total)*600));
+  const d = document.createElement("div");
+  d.className = "bar-seg";
+  d.title = `${a.name}: ${a.count.toLocaleString()} articole`;
+  d.style.cssText = `width:${w}px;height:${h}px;background:${a.count>500?"#FAC775":a.count>20?"#d4cff0":"#ddd"};`;
+  d.dataset.slug = a.slug;
+  d.addEventListener("click", () => selectAuthor(a));
+  barsEl.appendChild(d);
+});
+
+// Render authors
+const authCol = document.getElementById("col-authors");
+authCol.innerHTML = `<div class="bcol-head"><span>Autori (${AUTHORS.length})</span></div>`;
+AUTHORS.forEach(a => {
+  const d = document.createElement("div");
+  d.className = "brow";
+  d.dataset.slug = a.slug;
+  d.innerHTML = `<div><div class="brow-name">${a.name}</div>${a.years?`<div class="brow-sub">${a.years}</div>`:""}</div><span class="brow-badge">${a.count.toLocaleString()}</span>`;
+  d.addEventListener("click", () => selectAuthor(a));
+  authCol.appendChild(d);
+});
+
+// Render chat
+function renderChat() {
+  const wrap = document.getElementById("chat-wrap");
+  wrap.innerHTML = "";
+  chatHistory.forEach(m => {
+    const d = document.createElement("div");
+    d.className = `msg ${m.role}`;
+    d.textContent = m.content;
+    wrap.appendChild(d);
+  });
+  wrap.scrollTop = wrap.scrollHeight;
+}
+renderChat();
+
+async function fetchDoc(path) {
+  const r = await fetch(PROXY(BASE + path));
+  const j = await r.json();
+  return new DOMParser().parseFromString(j.contents, "text/html");
+}
+
+function spinner() {
+  const s = document.createElement("div"); s.className = "spin"; return s;
+}
+
+async function selectAuthor(author) {
+  selAuthor = author; selBook = null; currentContent = null;
+  document.getElementById("btn-analyze").style.display = "none";
+
+  // highlight author rows
+  document.querySelectorAll("#col-authors .brow").forEach(r => r.classList.toggle("active", r.dataset.slug === author.slug));
+  document.querySelectorAll("#bars .bar-seg").forEach(b => { b.style.outline = b.dataset.slug === author.slug ? "2px solid #5b6af0" : "none"; });
+
+  const bookCol = document.getElementById("col-books");
+  bookCol.innerHTML = `<div class="bcol-head"><span>Cărți · ${author.name.split(" ").slice(-1)[0]}</span></div>`;
+  bookCol.appendChild(spinner());
+
+  document.getElementById("col-articles").innerHTML = `<div class="bcol-head"><span>Articole</span></div><div class="empty-msg">Selectează o carte.</div>`;
+
+  try {
+    const doc = await fetchDoc(`/author/${author.slug}`);
+    bookCol.innerHTML = `<div class="bcol-head"><span>Cărți · ${author.name.split(" ").slice(-1)[0]}</span></div>`;
+    const seen = new Set();
+    doc.querySelectorAll("a[href^='/book/']").forEach(a => {
+      const slug = a.getAttribute("href").replace("/book/","").replace(/\/$/,"");
+      if (!seen.has(slug) && slug) {
+        seen.add(slug);
+        const title = a.querySelector("h3")?.textContent?.trim() || a.textContent.trim();
+        if (title && title.length > 2) {
+          const d = document.createElement("div");
+          d.className = "brow"; d.dataset.slug = slug;
+          d.innerHTML = `<div class="brow-name">${title}</div>`;
+          d.addEventListener("click", () => selectBook({ slug, title }));
+          bookCol.appendChild(d);
+        }
+      }
+    });
+    if (bookCol.querySelectorAll(".brow").length === 0) bookCol.innerHTML += `<div class="empty-msg">Nu s-au găsit cărți.</div>`;
+  } catch { bookCol.innerHTML += `<div class="empty-msg">Eroare la încărcare.</div>`; }
+
+  // update AI context bar
+  updateCtxBar();
+}
+
+async function selectBook(book) {
+  selBook = book;
+  document.querySelectorAll("#col-books .brow").forEach(r => r.classList.toggle("active", r.dataset.slug === book.slug));
+
+  const artCol = document.getElementById("col-articles");
+  artCol.innerHTML = `<div class="bcol-head"><span>${book.title}</span></div>`;
+  artCol.appendChild(spinner());
+
+  try {
+    const doc = await fetchDoc(`/book/${book.slug}`);
+    artCol.innerHTML = `<div class="bcol-head"><span>${book.title}</span></div>`;
+    const seen = new Set(), grid = document.createElement("div");
+    grid.className = "art-grid"; let n = 0;
+    doc.querySelectorAll("a[href^='/article/']").forEach(a => {
+      const slug = a.getAttribute("href").replace("/article/","").replace(/\/$/,"");
+      if (!seen.has(slug) && slug) {
+        seen.add(slug); n++;
+        const title = a.querySelector("h3")?.textContent?.trim() || a.textContent.trim();
+        if (title && title.length > 2) {
+          const d = document.createElement("div");
+          d.className = "art-row";
+          d.innerHTML = `<span class="art-num">${n}.</span><span class="art-title">${title}</span>`;
+          d.addEventListener("click", () => selectArticle({ slug, title }));
+          grid.appendChild(d);
+        }
+      }
+    });
+    artCol.querySelector(".bcol-head").innerHTML = `<span>${book.title}</span><span style="font-weight:400">${n}</span>`;
+    if (n === 0) artCol.innerHTML += `<div class="empty-msg">Nu s-au găsit articole.</div>`;
+    else artCol.appendChild(grid);
+  } catch { artCol.innerHTML += `<div class="empty-msg">Eroare la încărcare.</div>`; }
+}
+
+async function selectArticle(article) {
+  currentContent = null;
+  document.getElementById("btn-analyze").style.display = "none";
+  const rb = document.getElementById("reader-body");
+  rb.innerHTML = ""; rb.appendChild(spinner());
+
+  try {
+    const doc = await fetchDoc(`/article/${article.slug}`);
+    doc.querySelectorAll("nav,header,footer,script,style,img").forEach(el => el.remove());
+    const title = doc.querySelector("h1")?.textContent?.trim() || article.title;
+    const main = doc.querySelector("main") || doc.body;
+    const raw = (main.innerText || main.textContent || "");
+    const bad = ["Comori OD","Cuprins","Folosește","Articol "];
+    const lines = raw.split("\n").map(l=>l.trim()).filter(l =>
+      l.length > 1 && !bad.some(b=>l.startsWith(b)) &&
+      !l.includes("←") && !l.includes("→") &&
+      !(l.startsWith("de ") && l.length<40) && !l.startsWith("Volum:")
+    ).slice(0,200);
+    currentContent = { title, lines, fullText: lines.join("\n"), author: selAuthor?.name, book: selBook?.title };
+
+    rb.innerHTML = `
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;gap:10px">
+        <div>
+          <div id="article-title">${title}</div>
+          <div id="article-meta">${selAuthor?.name||""}${selBook?.title?` · ${selBook.title}`:""}</div>
+        </div>
+      </div>
+      <div id="article-text">${lines.join("\n")}</div>`;
+    document.getElementById("btn-analyze").style.display = "";
+    updateCtxBar();
+  } catch {
+    rb.innerHTML = `<div class="empty">Eroare la încărcarea articolului.</div>`;
+  }
+}
+
+function updateCtxBar() {
+  const ctx = document.getElementById("ai-ctx");
+  if (!currentContent && !selAuthor) { ctx.style.display = "none"; return; }
+  ctx.style.display = "flex";
+  let html = "";
+  if (currentContent) html += `<span>Text curent: <strong>${currentContent.title}</strong></span>`;
+  else if (selAuthor) html += `<span>Autor selectat: <strong>${selAuthor.name}</strong></span>`;
+  if (currentContent) html += `<button class="ctx-btn" onclick="analyzeCurrentText()">Analizează text ↗</button>`;
+  if (selAuthor) html += `<button class="ctx-btn" onclick="analyzeAuthor()">Profil autor ↗</button>`;
+  ctx.innerHTML = html;
+}
+
+function analyzeCurrentText() {
+  if (!currentContent) return;
+  sendAI(`Analizează în detaliu acest text din perspectivă teologică, poetică și literară. Identifică temele principale, simbolurile folosite, structura, mesajul central și contextul spiritual:\n\n"${currentContent.fullText.slice(0,2000)}"`);
+}
+
+function analyzeAuthor() {
+  if (!selAuthor) return;
+  sendAI(`Prezintă o analiză completă a lui ${selAuthor.name} ca autor din tradiția Oastei Domnului: biografie, contribuție literară și spirituală, teme recurente, stil și importanță istorică. Date: ${selAuthor.years||""}, ${selAuthor.count} articole.`);
+}
+
+function quickAsk(q) { sendAI(q); }
+
+document.getElementById("chat-input").addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey) { sendMessage(); e.preventDefault(); }
+});
+
+function sendMessage() {
+  const inp = document.getElementById("chat-input");
+  const text = inp.value.trim();
+  if (!text) return;
+  inp.value = "";
+  sendAI(text);
+}
+
+async function sendAI(text) {
+  document.getElementById("send-btn").disabled = true;
+  const ctx = currentContent
+    ? `\n\nContextul curent: textul "${currentContent.title}" de ${currentContent.author||"?"} din volumul "${currentContent.book||"?"}".`
+    : "";
+
+  chatHistory.push({ role:"user", content: text });
+  renderChat();
+
+  // typing indicator
+  const wrap = document.getElementById("chat-wrap");
+  const typing = document.createElement("div");
+  typing.className = "msg assistant typing"; typing.textContent = "Se generează răspunsul...";
+  wrap.appendChild(typing); wrap.scrollTop = wrap.scrollHeight;
+
+  try {
+    const r = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1000,
+        system: `Ești un specialist în literatura creștină românească, în special în operele Oastei Domnului — mișcarea de reînnoire spirituală fondată de Pr. Iosif Trifa în 1923. Cunoști profund operele lui Traian Dorz, Pr. Iosif Trifa și ceilalți autori din această tradiție. Analizezi texte cu profunzime teologică, poetică și istorică. Identifici teme, simboluri biblice, structuri poetice și mesaje spirituale. Răspunzi în română, cu eleganță și claritate.${ctx}`,
+        messages: chatHistory.map(m=>({ role:m.role, content:m.content })),
+      }),
+    });
+    const d = await r.json();
+    const reply = d.content?.[0]?.text || "Eroare la generarea răspunsului.";
+    chatHistory.push({ role:"assistant", content: reply });
+  } catch {
+    chatHistory.push({ role:"assistant", content: "Eroare de conexiune la API." });
+  }
+
+  renderChat();
+  document.getElementById("send-btn").disabled = false;
+}
+</script>
+</body>
+</html>
