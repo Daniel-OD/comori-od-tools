@@ -1,0 +1,71 @@
+html.dark body { background: #1a1a1a; color: #e8e4dc; }
+html.dark .card,
+html.dark .stat,
+html.dark #dist-bar,
+html.dark .quick-btn,
+html.dark .bookmark-item,
+html.dark .bookmarks-toggle,
+html.dark .icon-btn,
+html.dark .bookmark-toggle {
+  background: #1e1e1e;
+  border-color: #333;
+  color: #e8e4dc;
+}
+
+html.dark .card-header,
+html.dark .bcol-head,
+html.dark #ai-ctx,
+html.dark .progress-wrap,
+html.dark .col-search {
+  background: #1a1a1a;
+  border-color: #333;
+}
+
+html.dark .bcol,
+html.dark .browser-cols,
+html.dark .brow,
+html.dark .art-row,
+html.dark #chat-input-row,
+html.dark #reader-card .card-header,
+html.dark .ctx-btn,
+html.dark .search-input,
+html.dark #chat-input {
+  border-color: #333;
+}
+
+html.dark .brow:hover,
+html.dark .art-row:hover,
+html.dark .msg.assistant,
+html.dark .quick-btn:hover,
+html.dark .ctx-btn:hover,
+html.dark .brow.active {
+  background: #262626;
+}
+
+html.dark .stat-val,
+html.dark .brow-name,
+html.dark .art-title,
+html.dark #article-title,
+html.dark #article-text,
+html.dark .msg,
+html.dark .quick-lbl,
+html.dark .search-count,
+html.dark #article-meta,
+html.dark .stat-lbl,
+html.dark .brow-sub,
+html.dark .brow-badge,
+html.dark .progress-label,
+html.dark #dist-bar h3,
+html.dark #ai-ctx,
+html.dark .card-header h2,
+html.dark .bookmarks-head h3 {
+  color: #e8e4dc;
+}
+
+html.dark .msg.user,
+html.dark #send-btn,
+html.dark .analyze-btn,
+html.dark .bar-seg[data-active="true"] {
+  background: #5b6af0;
+  color: #fff;
+}
