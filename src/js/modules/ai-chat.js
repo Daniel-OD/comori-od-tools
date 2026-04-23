@@ -29,12 +29,30 @@ Dacă nu cunoști slug-ul exact al unui articol, nu genera link de articol — m
 Folosește linkuri natural în text, nu ca listă la final.
 ════════════════════════════`;
 
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  }[char]));
+}
+
+function sanitizeSlug(value) {
+  return String(value || "").trim().toLowerCase().replace(/[^a-z0-9-]/g, "");
+}
+
 // ─── Parsează [LINK:...] → <a href> ────────────────────────────────────────
 export function parseLinks(text) {
-  return text.replace(/\[LINK:(autor|carte|articol):([^\]:]+):([^\]]+)\]/g, (_, tip, slug, titlu) => {
+  const safeText = escapeHtml(text || "");
+  return safeText.replace(/\[LINK:(autor|carte|articol):([^\]:]+):([^\]]+)\]/g, (_, tip, slug, titlu) => {
     const paths = { autor: "author", carte: "book", articol: "article" };
-    const url = `${BASE_URL}/${paths[tip]}/${slug}`;
-    return `<a href="${url}" target="_blank" rel="noopener" style="color:#5b6af0;text-decoration:none;border-bottom:1px dotted #5b6af0;padding:0 2px;border-radius:2px;white-space:nowrap" title="Deschide pe comori-od.ro — ${tip}: ${titlu}">${titlu}<span style="font-size:10px;opacity:.6;margin-left:2px">↗</span></a>`;
+    const safeSlug = sanitizeSlug(slug);
+    const safeTitle = escapeHtml(titlu);
+    const url = `${BASE_URL}/${paths[tip]}/${encodeURIComponent(safeSlug)}`;
+    return `<a href="${url}" target="_blank" rel="noopener" style="color:#5b6af0;text-decoration:none;border-bottom:1px dotted #5b6af0;padding:0 2px;border-radius:2px;white-space:nowrap" title="Deschide pe comori-od.ro — ${tip}: ${safeTitle}">${safeTitle}<span style="font-size:10px;opacity:.6;margin-left:2px">↗</span></a>`;
   });
 }
 
