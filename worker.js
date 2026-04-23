@@ -99,6 +99,7 @@ export default {
 
         if (!groqResp.ok || groqData.error) {
           const errMsg = groqData?.error?.message || `Groq error ${groqResp.status}`;
+          console.error(`[worker] /ai groq error — status: ${groqResp.status}, message: ${errMsg}`);
           return corsJson({
             error: {
               type: "groq_error",
@@ -124,6 +125,7 @@ export default {
           content: [{ text }],
         });
       } catch (e) {
+        console.error(`[worker] /ai fetch exception — ${e.message}`);
         return corsJson({
           error: {
             type: "groq_error",
@@ -134,6 +136,7 @@ export default {
     }
 
     if (path === "/" || path === "/health") {
+      console.log(`[worker] health check — pathname: ${path}`);
       return corsJson({
         status: "ok",
         service: "comori-od-tools worker",
