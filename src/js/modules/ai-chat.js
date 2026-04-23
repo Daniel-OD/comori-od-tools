@@ -10,21 +10,29 @@ export async function sendAI(text, chatHistory, currentContent) {
 
   const messages = [...chatHistory, { role: "user", content: text }];
 
-  const resp = await fetch(`${WORKER_URL}/ai`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      messages: messages.map(m => ({ role: m.role, content: m.content })),
-      system: `Ești un specialist în literatura creștină românească, în special în operele Oastei Domnului — mișcarea de reînnoire spirituală fondată de Pr. Iosif Trifa în 1923. Cunoști profund operele lui Traian Dorz, Pr. Iosif Trifa și ceilalți autori din această tradiție. Analizezi texte cu profunzime teologică, poetică și istorică. Răspunzi în română, cu eleganță și claritate.${ctx}`,
-      max_tokens: 1000,
-    }),
-  });
+  try {
+    const resp = await fetch(`${WORKER_URL}/ai`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messages: messages.map(m => ({ role: m.role, content: m.content })),
+        system: `Ești un specialist în literatura creștină românească, în special în operele Oastei Domnului — mișcarea de reînnoire spirituală fondată de Pr. Iosif Trifa în 1923. Cunoști profund operele lui Traian Dorz, Pr. Iosif Trifa și ceilalți autori din această tradiție. Analizezi texte cu profunzime teologică, poetică și istorică. Răspunzi în română, cu eleganță și claritate.${ctx}`,
+        max_tokens: 1000,
+      }),
+    });
 
-  const data = await resp.json();
-  const reply = data.content?.[0]?.text || data.error || "Eroare la generare.";
+    const data = await resp.json();
+    const reply = data.content?.[0]?.text || data.error || (!resp.ok ? `Eroare HTTP ${resp.status}` : "Eroare la generare.");
 
-  return {
-    reply,
-    updatedHistory: [...messages, { role: "assistant", content: reply }],
-  };
+    return {
+      reply,
+      updatedHistory: [...messages, { role: "assistant", content: reply }],
+    };
+  } catch {
+    const reply = "Eroare de conexiune la API.";
+    return {
+      reply,
+      updatedHistory: [...messages, { role: "assistant", content: reply }],
+    };
+  }
 }

@@ -4,7 +4,7 @@
 // Deploy: https://dash.cloudflare.com → Workers → Create → Paste → Deploy
 // Setează secret: wrangler secret put ANTHROPIC_KEY  (sau din dashboard → Settings → Variables)
 
-const ALLOWED_ORIGIN = "*"; // Schimbă cu "https://daniel-od.github.io" în producție
+const ALLOWED_ORIGIN = "https://daniel-od.github.io";
 
 export default {
   async fetch(request, env) {
