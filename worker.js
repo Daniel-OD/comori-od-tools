@@ -1,10 +1,10 @@
 // Cloudflare Worker — comori-od-tools
 // 1) CORS proxy pentru comori-od.ro
-// 2) Google Gemini API pentru interpretare gratuită
+// 2) Groq API pentru interpretare gratuită
 
 const ALLOWED_ORIGIN = "https://daniel-od.github.io";
-const GEMINI_MODEL = "gemini-2.0-flash";
-const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+const GROQ_MODEL = "llama-3.3-70b-versatile";
+const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
 
 export default {
   async fetch(request, env) {
@@ -45,11 +45,11 @@ export default {
     }
 
     if (path === "/ai" && request.method === "POST") {
-      if (!env.GEMINI_API_KEY) {
+      if (!env.GROQ_API_KEY) {
         return corsJson({
           error: {
             type: "config_error",
-            message: "GEMINI_API_KEY not set in Worker env",
+            message: "GROQ_API_KEY not set in Worker env",
           },
         }, 500);
       }
@@ -67,53 +67,47 @@ export default {
 
       const history = Array.isArray(body.messages)
         ? body.messages
-            .filter((m) => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string")
+            .filter((m) => m && (m.role === "user" || m.role === "assistant" || m.role === "system") && typeof m.content === "string")
             .slice(-12)
         : [];
 
-      let prompt = system + "\n\n";
-      for (const m of history) {
-        if (m.role === "user") {
-          prompt += `User: ${m.content}\n`;
-        } else if (m.role === "assistant") {
-          prompt += `Assistant: ${m.content}\n`;
-        }
+      const messages = [
+        { role: "system", content: system },
+        ...history.filter((m) => m.role !== "system"),
+      ];
+
+      if (!messages.some((m) => m.role === "user")) {
+        messages.push({ role: "user", content: "Salut!" });
       }
-      prompt += "Assistant:";
 
       try {
-        const geminiResp = await fetch(GEMINI_ENDPOINT, {
+        const groqResp = await fetch(GROQ_ENDPOINT, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "x-goog-api-key": env.GEMINI_API_KEY,
+            "Authorization": `Bearer ${env.GROQ_API_KEY}`,
           },
           body: JSON.stringify({
-            contents: [
-              {
-                parts: [{ text: prompt }],
-              },
-            ],
-            generationConfig: {
-              temperature: 0.5,
-              maxOutputTokens: Math.min(Number(body.max_tokens) || 1200, 1200),
-            },
+            model: GROQ_MODEL,
+            messages,
+            temperature: 0.5,
+            max_tokens: Math.min(Number(body.max_tokens) || 1000, 1200),
           }),
         });
 
-        const geminiData = await geminiResp.json();
+        const groqData = await groqResp.json();
 
-        if (!geminiResp.ok || geminiData.error) {
-          const errMsg = geminiData?.error?.message || `Gemini error ${geminiResp.status}`;
+        if (!groqResp.ok || groqData.error) {
+          const errMsg = groqData?.error?.message || `Groq error ${groqResp.status}`;
           return corsJson({
             error: {
-              type: "gemini_error",
+              type: "groq_error",
               message: errMsg,
             },
           }, 502);
         }
 
-        const text = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        const text = groqData?.choices?.[0]?.message?.content || "";
 
         if (!text) {
           return corsJson({
@@ -125,15 +119,15 @@ export default {
         }
 
         return corsJson({
-          provider: "google-gemini",
-          model: GEMINI_MODEL,
+          provider: "groq",
+          model: GROQ_MODEL,
           content: [{ text }],
         });
       } catch (e) {
         return corsJson({
           error: {
-            type: "gemini_error",
-            message: e.message || "Gemini request failed",
+            type: "groq_error",
+            message: e.message || "Groq request failed",
           },
         }, 502);
       }
@@ -143,8 +137,8 @@ export default {
       return corsJson({
         status: "ok",
         service: "comori-od-tools worker",
-        ai_provider: "google-gemini",
-        ai_model: GEMINI_MODEL,
+        ai_provider: "groq",
+        ai_model: GROQ_MODEL,
       });
     }
 
