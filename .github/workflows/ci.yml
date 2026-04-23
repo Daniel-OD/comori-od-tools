@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Print Node version
+        run: node --version
+
+      - name: Verify required files exist
+        run: |
+          for f in \
+            docs/index.html \
+            docs/js/app.js \
+            docs/js/modules/browser.js \
+            docs/js/modules/ai-chat.js \
+            docs/js/modules/fetcher.js \
+            worker.js \
+            wrangler.toml; do
+            if [ ! -f "$f" ]; then
+              echo "ERROR: Required file missing: $f"
+              exit 1
+            fi
+            echo "OK: $f"
+          done
+
+      - name: Check worker.js syntax
+        run: node --check worker.js
+
+      - name: Verify browser.js exports required functions
+        run: |
+          for fn in initBrowser selectAuthor selectBook selectArticle getBrowserState; do
+            if ! grep -q "$fn" docs/js/modules/browser.js; then
+              echo "ERROR: '$fn' not found in docs/js/modules/browser.js"
+              exit 1
+            fi
+            echo "OK: $fn found"
+          done
+
+      - name: Verify docs/index.html loads app.js as a module
+        run: |
+          if ! grep -qE 'type="module"[^>]+src="\./js/app\.js"|type="module"[^>]+src="js/app\.js"' docs/index.html; then
+            echo "ERROR: docs/index.html does not contain a module script pointing to js/app.js"
+            exit 1
+          fi
+          echo "OK: module script for js/app.js found"
+
+      - name: Fail if absolute /js/ module paths found in docs/index.html
+        run: |
+          if grep -qE 'src="/js/' docs/index.html; then
+            echo "ERROR: Absolute /js/ path found in docs/index.html"
+            exit 1
+          fi
+          echo "OK: no absolute /js/ paths in docs/index.html"
+
+      - name: Fail if WORKER_URL still contains placeholder text
+        run: |
+          for f in docs/js/modules/fetcher.js docs/js/modules/ai-chat.js; do
+            if grep -q "YOUR_SUBDOMAIN" "$f"; then
+              echo "ERROR: WORKER_URL in $f still contains placeholder 'YOUR_SUBDOMAIN'"
+              exit 1
+            fi
+            echo "OK: no placeholder in $f"
+          done
