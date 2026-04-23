@@ -29,7 +29,6 @@ Dacă nu cunoști slug-ul exact al unui articol, nu genera link de articol — m
 Folosește linkuri natural în text, nu ca listă la final.
 ════════════════════════════`;
 
-
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, (char) => ({
     "&": "&amp;",
@@ -41,7 +40,34 @@ function escapeHtml(value) {
 }
 
 function sanitizeSlug(value) {
-  return String(value || "").trim().toLowerCase().replace(/[^a-z0-9-]/g, "");
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, "");
+}
+
+function extractErrorMessage(data, resp) {
+  if (typeof data?.content?.[0]?.text === "string" && data.content[0].text.trim()) {
+    return data.content[0].text.trim();
+  }
+
+  if (typeof data?.error === "string" && data.error.trim()) {
+    return data.error.trim();
+  }
+
+  if (typeof data?.error?.message === "string" && data.error.message.trim()) {
+    return data.error.message.trim();
+  }
+
+  if (typeof data?.message === "string" && data.message.trim()) {
+    return data.message.trim();
+  }
+
+  if (!resp.ok) {
+    return `Eroare HTTP ${resp.status}`;
+  }
+
+  return "Eroare la generare.";
 }
 
 // ─── Parsează [LINK:...] → <a href> ────────────────────────────────────────
@@ -92,15 +118,51 @@ export async function sendAI(text, chatHistory, currentContent, selAuthor, selBo
       }),
     });
 
-    const data = await resp.json();
-    const rawReply = data.content?.[0]?.text || data.error || (!resp.ok ? `Eroare HTTP ${resp.status}` : "Eroare la generare.");
+    let data = null;
+    try {
+      data = await resp.json();
+    } catch (parseError) {
+      console.error("[Comori OD][AI] Răspuns JSON invalid de la worker", {
+        error: parseError,
+        status: resp.status,
+        statusText: resp.statusText,
+      });
+
+      const rawReply = !resp.ok
+        ? `Eroare HTTP ${resp.status}`
+        : "Răspuns invalid de la serverul AI.";
+
+      return {
+        rawReply,
+        htmlReply: renderMarkdown(rawReply),
+        updatedHistory: [...messages, { role: "assistant", content: rawReply }],
+      };
+    }
+
+    if (!resp.ok || data?.error) {
+      console.error("[Comori OD][AI] Eroare răspuns worker/Anthropic", {
+        status: resp.status,
+        statusText: resp.statusText,
+        data,
+      });
+    }
+
+    const rawReply = extractErrorMessage(data, resp);
 
     return {
       rawReply,
       htmlReply: renderMarkdown(rawReply),
       updatedHistory: [...messages, { role: "assistant", content: rawReply }],
     };
-  } catch {
+  } catch (error) {
+    console.error("[Comori OD][AI] Eroare de conexiune", {
+      error,
+      workerUrl: `${WORKER_URL}/ai`,
+      hasCurrentContent: Boolean(currentContent),
+      author: selAuthor?.slug || null,
+      book: selBook?.slug || null,
+    });
+
     const rawReply = "Eroare de conexiune la API.";
     return {
       rawReply,
