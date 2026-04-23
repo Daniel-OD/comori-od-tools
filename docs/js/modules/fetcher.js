@@ -1,7 +1,7 @@
 // fetcher.js — folosește Cloudflare Worker propriu în loc de proxy-uri publice
 // Schimbă WORKER_URL cu URL-ul tău după deploy pe Cloudflare
 
-const WORKER_URL = "https://comori-od-worker.YOUR_SUBDOMAIN.workers.dev";
+const WORKER_URL = "https://comori-od-tools.daniel-iosif-gl.workers.dev";
 
 export async function fetchDoc(path) {
   const targetUrl = "https://comori-od.ro" + path;
