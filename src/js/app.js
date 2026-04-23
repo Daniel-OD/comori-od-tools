@@ -61,7 +61,7 @@ async function askAI(text) {
 
   setSending(true);
   const currentContent = state.currentContent;
-  const result = await sendAI(text.trim(), chatHistory.slice(0, -1), currentContent);
+  const result = await sendAI(text.trim(), chatHistory.slice(0, -1), currentContent, state.selAuthor, state.selBook);
   chatHistory = result.updatedHistory;
   renderChat(chatHistory);
   setSending(false);

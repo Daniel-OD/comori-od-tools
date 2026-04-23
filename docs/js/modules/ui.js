@@ -1,3 +1,5 @@
+import { renderMarkdown } from "./ai-chat.js";
+
 export function spinner() {
   const s = document.createElement("div");
   s.className = "spin";
@@ -12,7 +14,13 @@ export function renderChat(chatHistory) {
   chatHistory.forEach((message) => {
     const d = document.createElement("div");
     d.className = `msg ${message.role}`;
-    d.textContent = message.content;
+
+    if (message.role === "assistant") {
+      d.innerHTML = renderMarkdown(message.content);
+    } else {
+      d.textContent = message.content;
+    }
+
     wrap.appendChild(d);
   });
   wrap.scrollTop = wrap.scrollHeight;
