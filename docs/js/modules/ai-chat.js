@@ -81,22 +81,31 @@ export async function sendAI(text, chatHistory, currentContent, selAuthor, selBo
 
   const messages = [...chatHistory, { role: "user", content: text }];
 
-  const resp = await fetch(`${WORKER_URL}/ai`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      messages: messages.map((m) => ({ role: m.role, content: m.content })),
-      system: SYSTEM_PROMPT + ctx,
-      max_tokens: 1200,
-    }),
-  });
+  try {
+    const resp = await fetch(`${WORKER_URL}/ai`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messages: messages.map((m) => ({ role: m.role, content: m.content })),
+        system: SYSTEM_PROMPT + ctx,
+        max_tokens: 1200,
+      }),
+    });
 
-  const data = await resp.json();
-  const rawReply = data.content?.[0]?.text || data.error || "Eroare la generare.";
+    const data = await resp.json();
+    const rawReply = data.content?.[0]?.text || data.error || (!resp.ok ? `Eroare HTTP ${resp.status}` : "Eroare la generare.");
 
-  return {
-    rawReply,
-    htmlReply: renderMarkdown(rawReply),
-    updatedHistory: [...messages, { role: "assistant", content: rawReply }],
-  };
+    return {
+      rawReply,
+      htmlReply: renderMarkdown(rawReply),
+      updatedHistory: [...messages, { role: "assistant", content: rawReply }],
+    };
+  } catch {
+    const rawReply = "Eroare de conexiune la API.";
+    return {
+      rawReply,
+      htmlReply: renderMarkdown(rawReply),
+      updatedHistory: [...messages, { role: "assistant", content: rawReply }],
+    };
+  }
 }
