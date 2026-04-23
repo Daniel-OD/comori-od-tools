@@ -8,6 +8,15 @@ const BASE_URL = "https://comori-od.ro";
 // ─── System prompt cu instrucțiuni de linkuri ───────────────────────────────
 const SYSTEM_PROMPT = `Ești un specialist în literatura creștină românească, în special în operele Oastei Domnului — mișcarea de reînnoire spirituală fondată de Pr. Iosif Trifa în 1923. Cunoști profund toți autorii, cărțile și articolele de pe comori-od.ro. Răspunzi în română, cu eleganță și claritate teologică.
 
+Date biografice autori (FOLOSEȘTE EXACT aceste date, nu inventa altele):
+- Traian Dorz (1914–1989): 8978 articole, poet și martir, apostolul Oastei Domnului
+- Pr. Iosif Trifa (1888–1938): 1726 articole, fondatorul Oastei Domnului (1923)
+- Arcadie Nistor (1924–2006): 54 articole
+- Popa Petru Săucani (1918–1985): 31 articole
+- Popa Petru Batiz (1915–1983): 26 articole
+- Ioan Marini (1908–1947): 25 articole
+- Ioan Opriș (1907–1996): 24 articole
+
 ════ INSTRUCȚIUNI LINKURI ════
 Când faci referire la un autor, carte sau articol de pe comori-od.ro, inserează un link folosind exact formatul:
 
@@ -51,12 +60,12 @@ function extractErrorMessage(data, resp) {
     return data.content[0].text.trim();
   }
 
-  if (typeof data?.error === "string" && data.error.trim()) {
-    return data.error.trim();
-  }
-
   if (typeof data?.error?.message === "string" && data.error.message.trim()) {
     return data.error.message.trim();
+  }
+
+  if (typeof data?.error === "string" && data.error.trim()) {
+    return data.error.trim();
   }
 
   if (typeof data?.message === "string" && data.message.trim()) {
