@@ -133,17 +133,23 @@ export async function selectArticle(article) {
       doc.querySelector("main") ||
       doc.body;
 
+    const MIN_CONTENT_LENGTH = 25; // minimum chars for a line to be considered real content
+
     // Step 3: Extract text from semantic blocks
     const seen = new Set();
     let lines = [];
 
-    const isMetaOrDupe = (t) => {
-      if (seen.has(t)) return true;
-      if (t === title || t === bookTitle || t === authorName) return true;
-      if (/^[»›>]/.test(t) || t.split(/\s*[/›»>]\s*/).length > 2) return true; // breadcrumb-like
-      if (/^(home|acasa|inapoi|next|prev|previous|read more|mai mult)$/i.test(t)) return true;
-      return false;
-    };
+    // Returns true for nav fragments: starts with breadcrumb char, contains multiple separators,
+    // or is a single common navigation word (Romanian and English).
+    const isBreadcrumb = (t) =>
+      /^[»›>]/.test(t) ||
+      t.split(/\s*[/›»>]\s*/).length > 2 ||
+      /^(home|acasa|inapoi|next|prev|previous|read more|mai mult)$/i.test(t);
+
+    const isMetaOrDupe = (t) =>
+      seen.has(t) ||
+      t === title || t === bookTitle || t === authorName ||
+      isBreadcrumb(t);
 
     const addLine = (t) => {
       if (!t || isMetaOrDupe(t)) return;
@@ -156,15 +162,15 @@ export async function selectArticle(article) {
     blocks.forEach(el => {
       const t = el.textContent.trim();
       const isSubheading = /^h[23]$/i.test(el.tagName);
-      if (t.length >= 25 || isSubheading) addLine(t);
+      if (t.length >= MIN_CONTENT_LENGTH || isSubheading) addLine(t);
     });
 
-    // Step 5: Fallback to innerText if too little extracted
+    // Step 5: Fallback to plain text split when block extraction yields too little
     if (lines.length < 3) {
-      const raw = (container.innerText || container.textContent || "")
+      const raw = (container.textContent || "")
         .split(/\r?\n/)
         .map(l => l.trim())
-        .filter(l => l.length >= 25);
+        .filter(l => l.length >= MIN_CONTENT_LENGTH);
       lines = [];
       seen.clear();
       raw.forEach(t => addLine(t));
