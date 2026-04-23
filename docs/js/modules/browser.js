@@ -112,31 +112,68 @@ export async function selectArticle(article) {
   try {
     const doc = await fetchDoc(`/article/${article.slug}`);
 
-    doc.querySelectorAll("nav,header,footer,script,style,img").forEach(el => el.remove());
+    // Step 1: Remove noise elements
+    doc.querySelectorAll(
+      "nav, header, footer, script, style, img, svg, button, " +
+      ".breadcrumb, .breadcrumbs, .sidebar, .widget, .pagination, .nav-links, .post-navigation"
+    ).forEach(el => el.remove());
 
     const title = doc.querySelector("h1")?.textContent?.trim() || article.title;
+    const authorName = selAuthor?.name || "";
+    const bookTitle = selBook?.title || "";
 
-    const main =
-      doc.querySelector("main") ||
-      doc.querySelector(".post-content") ||
+    // Step 2: Find main content container by priority
+    const container =
+      doc.querySelector("article .entry-content") ||
+      doc.querySelector("article .post-content") ||
       doc.querySelector(".entry-content") ||
+      doc.querySelector(".post-content") ||
+      doc.querySelector("main article") ||
       doc.querySelector("article") ||
+      doc.querySelector("main") ||
       doc.body;
 
+    // Step 3: Extract text from semantic blocks
+    const seen = new Set();
     let lines = [];
 
-    const blocks = main.querySelectorAll("p, h2, h3, blockquote, li");
+    const isMetaOrDupe = (t) => {
+      if (seen.has(t)) return true;
+      if (t === title || t === bookTitle || t === authorName) return true;
+      if (/^[»›>]/.test(t) || t.split(/\s*[/›»>]\s*/).length > 2) return true; // breadcrumb-like
+      if (/^(home|acasa|inapoi|next|prev|previous|read more|mai mult)$/i.test(t)) return true;
+      return false;
+    };
 
-    if (blocks.length > 0) {
-      blocks.forEach(el => {
-        const t = el.textContent.trim();
-        if (t.length > 20) lines.push(t);
-      });
-    } else {
-      lines = (main.textContent || "")
-        .split("\n")
+    const addLine = (t) => {
+      if (!t || isMetaOrDupe(t)) return;
+      seen.add(t);
+      lines.push(t);
+    };
+
+    const blocks = container.querySelectorAll("p, blockquote, h2, h3, li");
+
+    blocks.forEach(el => {
+      const t = el.textContent.trim();
+      const isSubheading = /^h[23]$/i.test(el.tagName);
+      if (t.length >= 25 || isSubheading) addLine(t);
+    });
+
+    // Step 5: Fallback to innerText if too little extracted
+    if (lines.length < 3) {
+      const raw = (container.innerText || container.textContent || "")
+        .split(/\r?\n/)
         .map(l => l.trim())
-        .filter(l => l.length > 30);
+        .filter(l => l.length >= 25);
+      lines = [];
+      seen.clear();
+      raw.forEach(t => addLine(t));
+    }
+
+    // Step 6: Defensive check — only metadata/title extracted
+    if (lines.length <= 2 && lines.every(l => l === title || l === bookTitle || l === authorName)) {
+      console.error("[Reader] No real article body extracted", { slug: article.slug, title });
+      throw new Error("No real article body extracted");
     }
 
     if (!lines.length) throw new Error("No content parsed");
@@ -146,14 +183,14 @@ export async function selectArticle(article) {
       title,
       lines,
       fullText: lines.join("\n"),
-      author: selAuthor?.name || "",
-      book: selBook?.title || ""
+      author: authorName,
+      book: bookTitle,
     };
 
     renderReaderArticle(currentContent, handlers.onBookmarkChange);
 
   } catch (e) {
-    console.error("Reader error:", e);
+    console.error("[Reader] error:", e);
     renderReaderError();
   }
 
