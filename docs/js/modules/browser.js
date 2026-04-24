@@ -15,6 +15,29 @@ function emitState() {
   handlers.onStateChange({ selAuthor, selBook, currentContent });
 }
 
+function getSlugFromHref(href, segment) {
+  if (!href) return "";
+  try {
+    const url = href.startsWith("http") ? new URL(href) : new URL(href, "https://comori-od.ro");
+    const parts = url.pathname.split("/").filter(Boolean);
+    const idx = parts.indexOf(segment);
+    return idx >= 0 ? decodeURIComponent(parts[idx + 1] || "").replace(/\/$/, "") : "";
+  } catch {
+    const marker = `/${segment}/`;
+    const idx = href.indexOf(marker);
+    if (idx < 0) return "";
+    return href.slice(idx + marker.length).split(/[/?#]/)[0].replace(/\/$/, "");
+  }
+}
+
+function cleanTitle(text) {
+  return String(text || "")
+    .replace(/\s+/g, " ")
+    .replace(/Pr\.\s*Iosif\s*Trifa\s*/gi, "")
+    .replace(/Traian\s*Dorz\s*/gi, "")
+    .trim();
+}
+
 export function getBrowserState() {
   return { selAuthor, selBook, currentContent };
 }
@@ -42,27 +65,39 @@ export async function selectAuthor(author) {
   currentContent = null;
 
   const bookCol = document.getElementById("col-books");
+  const artCol = document.getElementById("col-articles");
   bookCol.innerHTML = `<div class="bcol-head"><span>Cărți</span></div>`;
+  artCol.innerHTML = `<div class="bcol-head"><span>Articole</span></div><div class="empty-msg">Selectează o carte.</div>`;
   showProgress("col-books", "Se încarcă volumele...");
 
   try {
     const doc = await fetchDoc(`/author/${author.slug}`);
     bookCol.innerHTML = `<div class="bcol-head"><span>Cărți</span></div>`;
 
-    doc.querySelectorAll("a[href^='/book/']").forEach((a) => {
-      const slug = a.getAttribute("href").replace("/book/", "").replace(/\/$/, "");
-      const title = a.textContent.trim();
+    const seen = new Set();
+    const anchors = [...doc.querySelectorAll("a[href*='/book/'], a[href*='comori-od.ro/book/']")];
 
-      if (slug && title.length > 2) {
+    anchors.forEach((a) => {
+      const slug = getSlugFromHref(a.getAttribute("href"), "book");
+      const title = cleanTitle(a.querySelector("h2,h3,h4")?.textContent || a.textContent);
+
+      if (slug && title.length > 2 && !seen.has(slug)) {
+        seen.add(slug);
         const d = document.createElement("div");
         d.className = "brow";
+        d.dataset.slug = slug;
         d.innerHTML = `<div class="brow-name">${title}</div>`;
         d.addEventListener("click", () => selectBook({ slug, title }));
         bookCol.appendChild(d);
       }
     });
 
+    if (!seen.size) {
+      console.error("[Browser] No books extracted", { author, links: [...doc.querySelectorAll("a")].slice(0, 20).map(a => a.getAttribute("href")) });
+      bookCol.innerHTML += `<div class="empty-msg">Nu s-au găsit cărți pentru acest autor.</div>`;
+    }
   } catch (e) {
+    console.error("[Browser] Author load failed", { author, error: e });
     bookCol.innerHTML += `<div class="empty-msg">Eroare la încărcare.</div>`;
   } finally {
     hideProgress("col-books");
@@ -83,20 +118,35 @@ export async function selectBook(book) {
     const doc = await fetchDoc(`/book/${book.slug}`);
     artCol.innerHTML = `<div class="bcol-head"><span>${book.title}</span></div>`;
 
-    doc.querySelectorAll("a[href^='/article/']").forEach((a, i) => {
-      const slug = a.getAttribute("href").replace("/article/", "").replace(/\/$/, "");
-      const title = a.textContent.trim();
+    const seen = new Set();
+    const grid = document.createElement("div");
+    grid.className = "art-grid";
+    const anchors = [...doc.querySelectorAll("a[href*='/article/'], a[href*='comori-od.ro/article/']")];
 
-      if (slug && title.length > 2) {
+    anchors.forEach((a) => {
+      const slug = getSlugFromHref(a.getAttribute("href"), "article");
+      const title = cleanTitle(a.querySelector("h2,h3,h4")?.textContent || a.textContent);
+
+      if (slug && title.length > 2 && !seen.has(slug)) {
+        seen.add(slug);
         const d = document.createElement("div");
         d.className = "art-row";
-        d.innerHTML = `<span>${i + 1}.</span> ${title}`;
+        d.dataset.slug = slug;
+        d.innerHTML = `<span class="art-num">${seen.size}.</span><span class="art-title">${title}</span>`;
         d.addEventListener("click", () => selectArticle({ slug, title }));
-        artCol.appendChild(d);
+        grid.appendChild(d);
       }
     });
 
-  } catch {
+    artCol.querySelector(".bcol-head").innerHTML = `<span>${book.title}</span><span style="font-weight:400">${seen.size}</span>`;
+    if (!seen.size) {
+      console.error("[Browser] No articles extracted", { book });
+      artCol.innerHTML += `<div class="empty-msg">Nu s-au găsit articole.</div>`;
+    } else {
+      artCol.appendChild(grid);
+    }
+  } catch (e) {
+    console.error("[Browser] Book load failed", { book, error: e });
     artCol.innerHTML += `<div class="empty-msg">Eroare la încărcare.</div>`;
   } finally {
     hideProgress("col-articles");
@@ -111,78 +161,37 @@ export async function selectArticle(article) {
 
   try {
     const doc = await fetchDoc(`/article/${article.slug}`);
-
-    // Step 1: Remove noise elements
-    doc.querySelectorAll(
-      "nav, header, footer, script, style, img, svg, button, " +
-      ".breadcrumb, .breadcrumbs, .sidebar, .widget, .pagination, .nav-links, .post-navigation"
-    ).forEach(el => el.remove());
+    doc.querySelectorAll("nav, header, footer, script, style, img, svg, button, .breadcrumb, .breadcrumbs, .sidebar, .widget, .pagination, .nav-links, .post-navigation").forEach(el => el.remove());
 
     const title = doc.querySelector("h1")?.textContent?.trim() || article.title;
     const authorName = selAuthor?.name || "";
     const bookTitle = selBook?.title || "";
+    const container = doc.querySelector("article .entry-content") || doc.querySelector("article .post-content") || doc.querySelector(".entry-content") || doc.querySelector(".post-content") || doc.querySelector("main article") || doc.querySelector("article") || doc.querySelector("main") || doc.body;
 
-    // Step 2: Find main content container by priority
-    const container =
-      doc.querySelector("article .entry-content") ||
-      doc.querySelector("article .post-content") ||
-      doc.querySelector(".entry-content") ||
-      doc.querySelector(".post-content") ||
-      doc.querySelector("main article") ||
-      doc.querySelector("article") ||
-      doc.querySelector("main") ||
-      doc.body;
-
-    const MIN_CONTENT_LENGTH = 25; // minimum chars for a line to be considered real content
-
-    // Step 3: Extract text from semantic blocks
     const seen = new Set();
     let lines = [];
-
-    // Returns true for nav fragments: starts with breadcrumb char, contains multiple separators,
-    // or is a single common navigation word (Romanian and English).
-    const isBreadcrumb = (t) =>
-      /^[»›>]/.test(t) ||
-      t.split(/\s*[/›»>]\s*/).length > 2 ||
-      /^(home|acasa|inapoi|next|prev|previous|read more|mai mult)$/i.test(t);
-
-    const isMetaOrDupe = (t) =>
-      seen.has(t) ||
-      t === title || t === bookTitle || t === authorName ||
-      isBreadcrumb(t);
+    const bad = new Set([title, bookTitle, authorName].filter(Boolean));
 
     const addLine = (t) => {
-      if (!t || isMetaOrDupe(t)) return;
-      seen.add(t);
-      lines.push(t);
+      const s = cleanTitle(t);
+      if (!s || s.length < 25 || seen.has(s) || bad.has(s)) return;
+      if (/^(home|acasa|înapoi|next|prev|read more|mai mult)$/i.test(s)) return;
+      seen.add(s);
+      lines.push(s);
     };
 
-    const blocks = container.querySelectorAll("p, blockquote, h2, h3, li");
+    container.querySelectorAll("p, blockquote, h2, h3, li").forEach(el => addLine(el.textContent));
 
-    blocks.forEach(el => {
-      const t = el.textContent.trim();
-      const isSubheading = /^h[23]$/i.test(el.tagName);
-      if (t.length >= MIN_CONTENT_LENGTH || isSubheading) addLine(t);
-    });
-
-    // Step 5: Fallback to plain text split when block extraction yields too little
     if (lines.length < 3) {
-      const raw = (container.textContent || "")
-        .split(/\r?\n/)
-        .map(l => l.trim())
-        .filter(l => l.length >= MIN_CONTENT_LENGTH);
       lines = [];
       seen.clear();
-      raw.forEach(t => addLine(t));
+      (container.textContent || "").split(/\r?\n/).forEach(addLine);
     }
 
-    // Step 6: Defensive check — only metadata/title extracted
-    if (lines.length <= 2 && lines.every(l => l === title || l === bookTitle || l === authorName)) {
+    if (!lines.length) {
       console.error("[Reader] No real article body extracted", { slug: article.slug, title });
       throw new Error("No real article body extracted");
     }
-
-    if (!lines.length) throw new Error("No content parsed");
 
     currentContent = {
       slug: article.slug,
@@ -194,7 +203,6 @@ export async function selectArticle(article) {
     };
 
     renderReaderArticle(currentContent, handlers.onBookmarkChange);
-
   } catch (e) {
     console.error("[Reader] error:", e);
     renderReaderError();
