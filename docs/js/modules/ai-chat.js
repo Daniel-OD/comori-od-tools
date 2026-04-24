@@ -1,4 +1,5 @@
 import { FACTS, factsAsPromptBlock } from "../data/facts.js";
+import { searchLibrary, formatRagContext } from "./rag.js";
 
 const WORKER_URL = "https://comori-od-tools.daniel-iosif-gl.workers.dev";
 
@@ -25,11 +26,6 @@ function answerFromFacts(text) {
   return null;
 }
 
-function buildRagContext(currentContent) {
-  if (!currentContent?.lines) return "";
-  return currentContent.lines.slice(0, 8).join("\n");
-}
-
 export function renderMarkdown(text){return text.replace(/\n/g,"<br>");}
 
 export async function sendAI(text, chatHistory, currentContent) {
@@ -54,7 +50,9 @@ export async function sendAI(text, chatHistory, currentContent) {
     };
   }
 
-  const rag = buildRagContext(currentContent);
+  // 🔥 FULL RAG
+  const ragResults = await searchLibrary(text, { currentContent });
+  const ragContext = formatRagContext(ragResults);
   const facts = factsAsPromptBlock();
 
   const messages = [...chatHistory, { role: "user", content: text }];
@@ -64,14 +62,20 @@ export async function sendAI(text, chatHistory, currentContent) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       messages,
-      system: `Nu inventa informații. Dacă nu știi, spune clar.\n\n${facts}\n\nCONTEXT:\n${rag}`,
+      system: `Răspunde STRICT pe baza contextului dat.
+Dacă informația nu există în surse, spune clar că nu există.
+
+${facts}
+
+CONTEXT BIBLIOTECĂ:
+${ragContext}`,
     }),
   });
 
   const data = await resp.json();
   const answer = data?.content?.[0]?.text || "Nu pot răspunde sigur.";
 
-  const reply = `📊 Încredere: medie\n\n${answer}`;
+  const reply = `📊 Încredere: ${ragResults[0]?.confidence || "medie"}\n\n${answer}`;
 
   return {
     rawReply: reply,
