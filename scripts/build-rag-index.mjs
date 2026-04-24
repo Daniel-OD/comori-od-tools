@@ -9,6 +9,8 @@ const ROOT = path.resolve(__dirname, "..");
 const OUT_DIR = path.join(ROOT, "docs", "data");
 const OUT_FILE = path.join(OUT_DIR, "rag-index.json");
 const BASE_URL = "https://comori-od.ro";
+const MAX_VOCAB = Number(process.env.RAG_MAX_VOCAB || 6000);
+const MAX_VECTOR_TERMS = Number(process.env.RAG_MAX_VECTOR_TERMS || 60);
 
 const AUTHORS = [
   { name: "Traian Dorz", slug: "traian-dorz" },
@@ -31,7 +33,28 @@ const AUTHORS = [
   { name: "Viorel Bar (Săucani)", slug: "viorel-bar-saucani" },
 ];
 
+const STOP = new Set([
+  "si", "sau", "de", "la", "in", "din", "cu", "pe", "pentru", "este", "sunt", "care", "ce", "un", "o", "ale", "al", "ai", "a", "lui", "lui", "prin", "spre", "mai", "nu", "se", "sa", "să", "ca", "caci", "căci", "cum", "cand", "când", "unde", "toate", "tot", "fost", "fi", "este", "era", "sint", "sînt",
+  "the", "and", "or", "of", "to", "is", "are",
+]);
+
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function normalize(text) {
+  return String(text || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s-]/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function tokenize(text) {
+  return normalize(text)
+    .split(" ")
+    .filter((t) => t.length > 2 && !STOP.has(t));
+}
 
 function decodeHtml(text) {
   return String(text || "")
@@ -67,19 +90,14 @@ function extractLinks(html, segment) {
   const seen = new Set();
   const re = /<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
   let match;
-
   while ((match = re.exec(html))) {
-    const href = match[1];
-    const slug = getSlugFromHref(href, segment);
+    const slug = getSlugFromHref(match[1], segment);
     if (!slug || seen.has(slug)) continue;
-
     const title = cleanText(stripTags(match[2]));
     if (!title || title.length < 2) continue;
-
     seen.add(slug);
     links.push({ slug, title });
   }
-
   return links;
 }
 
@@ -98,10 +116,7 @@ function getSlugFromHref(href, segment) {
 }
 
 function cleanText(text) {
-  return String(text || "")
-    .replace(/\s+/g, " ")
-    .replace(/⏱\s*<?\s*\d+\s*min/gi, "")
-    .trim();
+  return String(text || "").replace(/\s+/g, " ").replace(/⏱\s*<?\s*\d+\s*min/gi, "").trim();
 }
 
 function extractTitle(html, fallback) {
@@ -110,12 +125,7 @@ function extractTitle(html, fallback) {
 }
 
 function extractArticleText(html) {
-  const candidates = [
-    /<article[\s\S]*?>([\s\S]*?)<\/article>/i,
-    /<main[\s\S]*?>([\s\S]*?)<\/main>/i,
-    /<body[\s\S]*?>([\s\S]*?)<\/body>/i,
-  ];
-
+  const candidates = [/<article[\s\S]*?>([\s\S]*?)<\/article>/i, /<main[\s\S]*?>([\s\S]*?)<\/main>/i, /<body[\s\S]*?>([\s\S]*?)<\/body>/i];
   for (const re of candidates) {
     const match = html.match(re);
     if (match) {
@@ -123,7 +133,6 @@ function extractArticleText(html) {
       if (text.length > 80) return text;
     }
   }
-
   return stripTags(html);
 }
 
@@ -131,7 +140,6 @@ function chunkText(text, maxChars = 1200, overlap = 180) {
   const paragraphs = text.split(/\n+/).map(cleanText).filter((p) => p.length > 40);
   const chunks = [];
   let current = "";
-
   for (const p of paragraphs) {
     if ((current + "\n" + p).length > maxChars && current.length > 0) {
       chunks.push(current.trim());
@@ -139,20 +147,51 @@ function chunkText(text, maxChars = 1200, overlap = 180) {
     }
     current += (current ? "\n" : "") + p;
   }
-
   if (current.trim().length > 60) chunks.push(current.trim());
   return chunks;
+}
+
+function buildSparseEmbeddings(chunks) {
+  const docs = chunks.map((c) => tokenize(`${c.title} ${c.author} ${c.book} ${c.text}`));
+  const df = new Map();
+
+  for (const tokens of docs) {
+    for (const token of new Set(tokens)) df.set(token, (df.get(token) || 0) + 1);
+  }
+
+  const vocab = [...df.entries()]
+    .filter(([, count]) => count >= 2)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, MAX_VOCAB)
+    .map(([term]) => term);
+
+  const vocabIndex = new Map(vocab.map((term, i) => [term, i]));
+  const idf = vocab.map((term) => Math.log((1 + docs.length) / (1 + (df.get(term) || 0))) + 1);
+
+  chunks.forEach((chunk, docIdx) => {
+    const tf = new Map();
+    for (const token of docs[docIdx]) {
+      if (vocabIndex.has(token)) tf.set(token, (tf.get(token) || 0) + 1);
+    }
+
+    const vector = [...tf.entries()]
+      .map(([term, count]) => {
+        const i = vocabIndex.get(term);
+        return [i, Number((Math.log(1 + count) * idf[i]).toFixed(4))];
+      })
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, MAX_VECTOR_TERMS);
+
+    chunk.v = vector;
+  });
+
+  return { vocab, idf: idf.map((n) => Number(n.toFixed(4))) };
 }
 
 async function fetchHtml(url, tries = 3) {
   for (let i = 0; i < tries; i++) {
     try {
-      const resp = await fetch(url, {
-        headers: {
-          "User-Agent": "Mozilla/5.0 (compatible; comori-od-rag-builder/1.0)",
-          "Accept": "text/html,application/xhtml+xml",
-        },
-      });
+      const resp = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (compatible; comori-od-rag-builder/1.0)", "Accept": "text/html,application/xhtml+xml" } });
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       return await resp.text();
     } catch (error) {
@@ -168,23 +207,17 @@ async function main() {
   const errors = [];
   let articleCount = 0;
   let bookCount = 0;
-
   const limitAuthors = Number(process.env.RAG_LIMIT_AUTHORS || 0);
   const limitBooks = Number(process.env.RAG_LIMIT_BOOKS || 0);
   const limitArticles = Number(process.env.RAG_LIMIT_ARTICLES || 0);
   const sleepMs = Number(process.env.RAG_SLEEP_MS || 150);
-
   const authors = limitAuthors ? AUTHORS.slice(0, limitAuthors) : AUTHORS;
 
   for (const author of authors) {
     console.log(`\n[author] ${author.name}`);
     let authorHtml;
-    try {
-      authorHtml = await fetchHtml(`${BASE_URL}/author/${author.slug}`);
-    } catch (error) {
-      errors.push({ type: "author", slug: author.slug, message: error.message });
-      continue;
-    }
+    try { authorHtml = await fetchHtml(`${BASE_URL}/author/${author.slug}`); }
+    catch (error) { errors.push({ type: "author", slug: author.slug, message: error.message }); continue; }
 
     let books = extractLinks(authorHtml, "book");
     if (limitBooks) books = books.slice(0, limitBooks);
@@ -193,13 +226,8 @@ async function main() {
     for (const book of books) {
       bookCount++;
       let bookHtml;
-      try {
-        await delay(sleepMs);
-        bookHtml = await fetchHtml(`${BASE_URL}/book/${book.slug}`);
-      } catch (error) {
-        errors.push({ type: "book", slug: book.slug, message: error.message });
-        continue;
-      }
+      try { await delay(sleepMs); bookHtml = await fetchHtml(`${BASE_URL}/book/${book.slug}`); }
+      catch (error) { errors.push({ type: "book", slug: book.slug, message: error.message }); continue; }
 
       let articles = extractLinks(bookHtml, "article");
       if (limitArticles) articles = articles.slice(0, limitArticles);
@@ -213,21 +241,7 @@ async function main() {
           const text = extractArticleText(html);
           const articleChunks = chunkText(text);
           articleCount++;
-
-          articleChunks.forEach((chunk, idx) => {
-            chunks.push({
-              id: `${article.slug}#${idx + 1}`,
-              slug: article.slug,
-              title,
-              author: author.name,
-              authorSlug: author.slug,
-              book: book.title,
-              bookSlug: book.slug,
-              url: `${BASE_URL}/article/${article.slug}`,
-              chunk: idx + 1,
-              text: chunk,
-            });
-          });
+          articleChunks.forEach((chunk, idx) => chunks.push({ id: `${article.slug}#${idx + 1}`, slug: article.slug, title, author: author.name, authorSlug: author.slug, book: book.title, bookSlug: book.slug, url: `${BASE_URL}/article/${article.slug}`, chunk: idx + 1, text: chunk }));
         } catch (error) {
           errors.push({ type: "article", slug: article.slug, message: error.message });
         }
@@ -235,29 +249,14 @@ async function main() {
     }
   }
 
-  await mkdir(OUT_DIR, { recursive: true });
-  const payload = {
-    version: 1,
-    generatedAt: new Date().toISOString(),
-    source: BASE_URL,
-    stats: {
-      authors: authors.length,
-      books: bookCount,
-      articles: articleCount,
-      chunks: chunks.length,
-      errors: errors.length,
-      startedAt,
-    },
-    chunks,
-    errors: errors.slice(0, 200),
-  };
+  console.log("\n[embeddings] building sparse TF-IDF vectors...");
+  const embedding = buildSparseEmbeddings(chunks);
 
+  await mkdir(OUT_DIR, { recursive: true });
+  const payload = { version: 2, embedding: { type: "sparse-tfidf", maxVocab: MAX_VOCAB, maxVectorTerms: MAX_VECTOR_TERMS, ...embedding }, generatedAt: new Date().toISOString(), source: BASE_URL, stats: { authors: authors.length, books: bookCount, articles: articleCount, chunks: chunks.length, errors: errors.length, startedAt }, chunks, errors: errors.slice(0, 200) };
   await writeFile(OUT_FILE, JSON.stringify(payload, null, 2), "utf8");
   console.log(`\nDone: ${OUT_FILE}`);
   console.log(payload.stats);
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+main().catch((error) => { console.error(error); process.exit(1); });
