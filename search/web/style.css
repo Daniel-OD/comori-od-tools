@@ -1,0 +1,18 @@
+:root{--bg:#faf8f4;--fg:#222;--muted:#6b6458;--accent:#7a3b1d;--card:#fff;--line:#e4ddd0}
+*{box-sizing:border-box}body{margin:0;font:16px/1.55 Georgia,serif;background:var(--bg);color:var(--fg)}
+header,main{max-width:900px;margin:0 auto;padding:16px}h1{margin:.2em 0;color:var(--accent)}.sub{margin:0;color:var(--muted)}
+textarea{width:100%;font:inherit;padding:10px;border:1px solid var(--line);border-radius:8px;resize:vertical}
+.row{display:flex;flex-wrap:wrap;gap:10px;margin:10px 0;align-items:end}label{font-size:.85rem;color:var(--muted);display:flex;flex-direction:column;gap:2px}
+select{font:inherit;padding:6px;border:1px solid var(--line);border-radius:6px;max-width:210px}
+button{font:inherit;padding:8px 16px;border:0;border-radius:6px;background:var(--accent);color:#fff;cursor:pointer}
+button.sec{background:#fff;color:var(--accent);border:1px solid var(--accent)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin:12px 0}
+.card h3{margin:0 0 4px}.card h3 a{color:var(--accent);text-decoration:none;cursor:pointer}
+.meta{color:var(--muted);font-size:.88rem;margin:2px 0 8px}.snip{white-space:pre-wrap}
+mark{background:#ffe9a8;padding:0 1px}mark.passage{background:#e6f1d6}
+.badges{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0;font-size:.82rem}.badge{background:#f1ece2;border-radius:12px;padding:2px 10px}
+.why{font-size:.88rem;color:#444;margin:6px 0 0;padding-left:18px}.actions{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap}
+.disc{font-size:.8rem;color:var(--muted)}dialog{max-width:820px;width:94vw;border:1px solid var(--line);border-radius:12px;padding:16px}
+.dlg-head{display:flex;justify-content:space-between;align-items:start}.dlg-head button{background:none;color:#444;font-size:1.6rem;padding:0 8px}
+.fulltext{white-space:pre-wrap;max-height:55vh;overflow:auto;border-top:1px solid var(--line);padding-top:10px}.dlg-foot{display:flex;gap:14px;align-items:center;margin-top:10px;flex-wrap:wrap}
+@media(max-width:600px){select{max-width:100%}}

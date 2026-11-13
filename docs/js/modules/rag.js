@@ -1,60 +1,35 @@
-const INDEX_URL = "data/rag-index.json";
-let cachedIndex = null;
+// rag.js — context pentru chatul AI din motorul Comori Search (căutare hibridă BM25 + embeddings, în PostgreSQL/pgvector).
+// Interfața (searchLibrary / formatRagContext) este neschimbată față de versiunea veche, deci ai-chat.js nu se modifică.
+import { SEARCH_API_URL } from "../config.js";
 
-function normalize(text) {
-  return String(text || "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9\s-]/gi, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+function apiBase() {
+  let base = SEARCH_API_URL;
+  try { base = localStorage.getItem("comoriSearchApi") || base; } catch { /* storage indisponibil */ }
+  return (base || "").replace(/\/+$/, "");
 }
 
-function tokenize(text) {
-  const stop = new Set(["si","sau","de","la","in","din","cu","pe","pentru","este","sunt","care","ce","un","o","ale","al","ai","a","lui","the","and","or","of","to","is","are"]);
-  return normalize(text).split(" ").filter((t) => t.length > 2 && !stop.has(t));
-}
-
-async function loadIndex() {
-  if (cachedIndex) return cachedIndex;
-  const resp = await fetch(INDEX_URL, { cache: "no-store" });
-  cachedIndex = await resp.json();
-  return cachedIndex;
-}
-
-function buildQueryVector(tokens, embedding) {
-  const { vocab, idf } = embedding;
-  const map = new Map(vocab.map((t, i) => [t, i]));
-  const tf = new Map();
-
-  tokens.forEach(t => {
-    if (map.has(t)) tf.set(t, (tf.get(t) || 0) + 1);
-  });
-
-  return [...tf.entries()].map(([t, count]) => {
-    const i = map.get(t);
-    return [i, Math.log(1 + count) * idf[i]];
-  });
-}
-
-function cosine(a, b) {
-  let dot = 0, normA = 0, normB = 0;
-  const map = new Map(a);
-
-  a.forEach(([i, v]) => normA += v * v);
-  b.forEach(([i, v]) => {
-    normB += v * v;
-    if (map.has(i)) dot += v * map.get(i);
-  });
-
-  return dot / (Math.sqrt(normA) * Math.sqrt(normB) + 1e-9);
+async function callApi(base, query, limit) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 15000);
+  try {
+    const words = query.trim().split(/\s+/).length;
+    // 3+ cuvinte: căutare după idee; mai puține: căutare hibridă (cuvinte + sens)
+    const resp = words >= 3
+      ? await fetch(`${base}/api/idea`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: query, limit }),
+          signal: ctrl.signal,
+        })
+      : await fetch(`${base}/api/search?${new URLSearchParams({ q: query, mode: "hybrid", limit })}`, { signal: ctrl.signal });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    return await resp.json();
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export async function searchLibrary(query, { currentContent = null, limit = 5 } = {}) {
-  const index = await loadIndex();
-  const tokens = tokenize(query);
-
   const results = [];
 
   if (currentContent?.fullText) {
@@ -68,25 +43,37 @@ export async function searchLibrary(query, { currentContent = null, limit = 5 } 
     });
   }
 
-  const qVec = buildQueryVector(tokens, index.embedding);
+  const base = apiBase();
+  if (!base) return results;
 
-  for (const chunk of index.chunks) {
-    if (!chunk.v) continue;
-    const score = cosine(qVec, chunk.v);
-    if (score > 0.05) {
-      results.push({ ...chunk, score, confidence: score > 0.2 ? "ridicată" : "medie" });
+  try {
+    const data = await callApi(base, query, limit);
+    for (const r of data.results || []) {
+      results.push({
+        title: r.title,
+        author: r.author,
+        book: r.book,
+        text: r.snippet,
+        url: r.url,
+        score: r.similarity ?? r.relevance,
+        confidence: r.confidence || "medie",
+        reasons: r.reasons || [],
+      });
     }
+  } catch (e) {
+    // Fără API, chatul continuă doar cu articolul deschis; nu inventăm surse.
+    console.warn("Căutarea în bibliotecă nu este disponibilă:", e.message);
   }
-
-  return results.sort((a,b)=>b.score-a.score).slice(0,limit);
+  return results.slice(0, limit);
 }
 
 export function formatRagContext(results) {
-  return results.map((r,i)=>[
-    `SURSA ${i+1} [${r.confidence}]`,
+  return results.map((r, i) => [
+    `SURSA ${i + 1} [${r.confidence}]`,
     `Titlu: ${r.title}`,
     `Autor: ${r.author}`,
     `Carte: ${r.book}`,
-    `Fragment: ${String(r.text).slice(0,1000)}`
-  ].join("\n")).join("\n\n");
+    r.url ? `Link: ${r.url}` : null,
+    `Fragment: ${String(r.text).slice(0, 1000)}`,
+  ].filter(Boolean).join("\n")).join("\n\n");
 }
