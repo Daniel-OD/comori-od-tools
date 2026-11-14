@@ -7,7 +7,8 @@ Instrumente pentru [comori-od.ro](https://comori-od.ro): un cititor cu chat AI �
 | Folder | Ce este |
 |---|---|
 | `docs/` | Aplicația web statică (GitHub Pages): browser Autori → Cărți → Articole, cititor, marcaje, statistici, chat AI |
-| `worker.js` | Cloudflare Worker: proxy CORS către comori-od.ro și apeluri către modelul AI (Groq) |
+| `supabase/functions/comori/` | **Funcția folosită acum** (Supabase Edge Function): proxy CORS doar către comori-od.ro și chat prin Groq. Secretul `GROQ_API_KEY` se setează în Supabase → Edge Functions → Secrets |
+| `worker.js` | Varianta veche pentru Cloudflare Worker (nefolosită acum; rămâne ca alternativă) |
 | `search/` | **Comori Search**: crawler, PostgreSQL + pgvector, căutare hibridă BM25 + embeddings, „căutare după idee”, „articole înrudite”, API FastAPI și interfață proprie. Vezi [`search/README.md`](search/README.md) |
 
 ## Cum se leagă
