@@ -1,0 +1,22 @@
+# Set de evaluare pentru lotul-pilot. Completează `expect` cu fragmente din URL-urile articolelor
+# pe care TU le consideri relevante (după ce rulezi `eval --csv` și răsfoiești rezultatele).
+# Un rezultat e „corect” dacă URL-ul conține oricare dintre fragmentele din `expect`.
+# `avoid` = articole care NU trebuie să apară în primele k (asemănare doar prin cuvinte comune).
+queries:
+  - query: "Lepădarea de sine și renunțarea la voia proprie pentru a împlini voia lui Dumnezeu."
+    mode: idea
+    expect: []
+    avoid: []
+  - query: "stăruința în rugăciune"
+    mode: hybrid
+    expect: []
+    avoid: []
+  - query: "răstignirea firii pământești"
+    mode: lexical
+    expect: []
+    avoid: []
+  - query: "Dumnezeu ascultă rugăciunea celui care se smerește"
+    mode: semantic
+    expect: []
+    avoid: []
+k: 10

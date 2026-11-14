@@ -39,8 +39,8 @@ jobs:
             echo "OK: $f"
           done
 
-      - name: Check worker.js syntax
-        run: node --check worker.js
+      - name: Check worker.js and rag.js syntax
+        run: npm run check
 
       - name: Verify browser.js exports required functions
         run: |
@@ -77,3 +77,35 @@ jobs:
             fi
             echo "OK: no placeholder in $f"
           done
+
+  search-tests:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: comori
+          POSTGRES_PASSWORD: comori
+          POSTGRES_DB: comori_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U comori"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: search
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies (fără modelul de embeddings, testele folosesc embedder de test)
+        run: |
+          grep -v sentence-transformers requirements.txt > /tmp/requirements-ci.txt
+          pip install -r /tmp/requirements-ci.txt
+      - name: Tests (offline + PostgreSQL/pgvector)
+        env:
+          TEST_DATABASE_URL: postgresql://comori:comori@localhost:5432/comori_test
+        run: python -m pytest -q tests

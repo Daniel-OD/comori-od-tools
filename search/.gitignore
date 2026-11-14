@@ -1,0 +1,8 @@
+.env
+data/raw/
+data/index/
+data/articles.jsonl
+data/discovery.json
+__pycache__/
+.pytest_cache/
+*.csv

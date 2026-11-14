@@ -1,0 +1,48 @@
+# Teme și expresii echivalente. Folosit pentru (a) extinderea căutării lexicale, (b) etichetarea tematică.
+# E un punct de pornire: îl poți completa fără a modifica codul.
+themes:
+  lepadare_de_sine:
+    label: Lepădarea de sine
+    terms: [lepădare de sine, voia proprie, omul cel vechi, răstignirea firii, firea pământească, urmarea lui Hristos, să se lepede de sine, supunerea voinței]
+  rugaciune:
+    label: Rugăciunea
+    terms: [rugăciune, stăruință în rugăciune, mijlocire, comuniune cu Dumnezeu, închinare, a se ruga, rugăciunea de dimineață]
+  pocainta:
+    label: Pocăința
+    terms: [pocăință, întoarcere la Dumnezeu, mărturisirea păcatelor, căință, iertarea păcatelor, nașterea din nou]
+  credinta:
+    label: Credința
+    terms: [credință, încredere în Dumnezeu, a crede, credincioșie, nădejde]
+  sfintire:
+    label: Sfințirea vieții
+    terms: [sfințire, sfințenie, curăția inimii, viață sfântă, umblarea cu Dumnezeu]
+  jertfa:
+    label: Jertfa lui Hristos
+    terms: [jertfa lui Hristos, sângele Mielului, răscumpărare, golgota, răstignirea Domnului, cruce]
+  mantuire:
+    label: Mântuirea
+    terms: [mântuire, mântuit, izbăvire, iertare, harul lui Dumnezeu]
+  duhul_sfant:
+    label: Duhul Sfânt
+    terms: [Duhul Sfânt, umplerea cu Duhul, Mângâietorul, roadele Duhului, botezul cu Duhul]
+  dragoste:
+    label: Dragostea
+    terms: [dragoste, iubire frățească, dragostea de aproapele, iubirea lui Dumnezeu]
+  ascultare:
+    label: Ascultarea
+    terms: [ascultare, supunere, a împlini porunca, voia lui Dumnezeu, păzirea poruncilor]
+  lupta_duhovniceasca:
+    label: Lupta duhovnicească
+    terms: [lupta duhovnicească, ispită, vrăjmașul, războiul credinței, biruință, veghere]
+  evanghelizare:
+    label: Vestirea Evangheliei
+    terms: [evanghelizare, vestirea Evangheliei, mărturie, misiune, câștigarea sufletelor, oaste]
+  incercari:
+    label: Încercări și suferință
+    terms: [încercare, suferință, necaz, strâmtorare, răbdare, prigonire]
+  smerenie:
+    label: Smerenia
+    terms: [smerenie, mândrie, umilință, înjosire de sine]
+  cuvantul:
+    label: Cuvântul lui Dumnezeu
+    terms: [Cuvântul lui Dumnezeu, Biblia, Sfintele Scripturi, citirea Bibliei, studiul Bibliei]

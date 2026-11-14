@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Comori Search — căutare după cuvinte și idei</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <h1>Comori Search</h1>
+  <p class="sub">Căutare în biblioteca Comori OD: după cuvinte, expresii și <b>idei</b>.</p>
+</header>
+
+<main>
+  <form id="f">
+    <textarea id="q" rows="2" placeholder="Scrie un cuvânt, o expresie între ghilimele sau lipește un paragraf/o idee…" required></textarea>
+    <div class="row">
+      <label>Mod
+        <select id="mode">
+          <option value="hybrid">Hibrid (cuvinte + sens)</option>
+          <option value="idea">După idee</option>
+          <option value="lexical">Cuvinte (BM25, cu sinonime)</option>
+          <option value="semantic">Doar sens</option>
+          <option value="phrase">Expresie exactă</option>
+        </select>
+      </label>
+      <label>Autor <select id="author"><option value="">toți</option></select></label>
+      <label>Carte <select id="book"><option value="">toate</option></select></label>
+      <label>Volum <select id="volume"><option value="">toate</option></select></label>
+      <label>Categorie <select id="category"><option value="">toate</option></select></label>
+      <button type="submit">Caută</button>
+    </div>
+  </form>
+
+  <div id="status" aria-live="polite"></div>
+  <div id="results"></div>
+  <p id="disc" class="disc"></p>
+</main>
+
+<dialog id="dlg">
+  <div class="dlg-head"><h2 id="dlg-title"></h2><button id="dlg-close" aria-label="Închide">×</button></div>
+  <p id="dlg-meta" class="meta"></p>
+  <div id="dlg-text" class="fulltext"></div>
+  <div class="dlg-foot">
+    <a id="dlg-src" target="_blank" rel="noopener">Deschide sursa originală</a>
+    <button id="dlg-related">Găsește articole înrudite cu acest articol</button>
+  </div>
+</dialog>
+<script src="/static/app.js"></script>
+</body>
+</html>
