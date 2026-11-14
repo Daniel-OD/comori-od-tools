@@ -1,7 +1,7 @@
 import { FACTS, factsAsPromptBlock } from "../data/facts.js";
 import { searchLibrary, formatRagContext } from "./rag.js";
 
-const WORKER_URL = "https://comori-od-tools.daniel-iosif-gl.workers.dev";
+const WORKER_URL = "https://uwmwegelxqiambeuqqbs.supabase.co/functions/v1/comori";
 
 function detectIntent(text) {
   if (/\b(când|în ce an|data|prima zi|cine a fondat)\b/i.test(text)) return "factual";

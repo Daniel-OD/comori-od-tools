@@ -1,4 +1,4 @@
-const WORKER_URL = "https://comori-od-tools.daniel-iosif-gl.workers.dev";
+const WORKER_URL = "https://uwmwegelxqiambeuqqbs.supabase.co/functions/v1/comori";
 const SOURCE_BASE_URL = "https://comori-od.ro";
 
 export async function fetchDoc(path) {
