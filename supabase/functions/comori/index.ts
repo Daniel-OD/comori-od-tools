@@ -51,7 +51,8 @@ Deno.serve(async (req: Request) => {
       }
       const buf = await resp.arrayBuffer();
       if (buf.byteLength > MAX_BYTES) return text(req, "Response too large", 502);
-      return text(req, new TextDecoder().decode(buf), resp.status, "text/html; charset=utf-8");
+      // Supabase servește oricum HTML ca text simplu; declarăm explicit UTF-8 ca diacriticele să se vadă corect și în browser
+      return text(req, new TextDecoder("utf-8").decode(buf), resp.status, "text/plain; charset=utf-8");
     } catch (e) {
       return text(req, `Fetch error: ${(e as Error).message}`, 502);
     }
