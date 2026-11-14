@@ -7,7 +7,7 @@ from .config import ROOT, get_settings
 
 
 def connect(register_vector: bool = True) -> psycopg.Connection:
-    conn = psycopg.connect(get_settings().database_url, row_factory=dict_row)
+    conn = psycopg.connect(get_settings().database_url, row_factory=dict_row, prepare_threshold=None)  # compatibil cu pooler-ul Supabase
     if register_vector:
         try:
             from pgvector.psycopg import register_vector as reg

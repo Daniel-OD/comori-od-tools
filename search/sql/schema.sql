@@ -59,3 +59,13 @@ CREATE TABLE IF NOT EXISTS bible_refs (
 );
 CREATE INDEX IF NOT EXISTS bible_refs_idx ON bible_refs(book, chapter);
 CREATE INDEX IF NOT EXISTS bible_refs_article_idx ON bible_refs(article_id);
+
+-- Supabase expune schema `public` prin API-ul REST (cheia anon). Activăm RLS fără politici:
+-- nimeni nu poate citi/scrie tabelele prin API-ul REST; serverul nostru se conectează direct ca
+-- proprietar (rolul postgres), care ignoră RLS. Pe un PostgreSQL obișnuit nu are niciun efect vizibil.
+ALTER TABLE authors    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE books      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE volumes    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE articles   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE passages   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE bible_refs ENABLE ROW LEVEL SECURITY;
